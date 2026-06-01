@@ -1,0 +1,51 @@
+replicaCount: 2
+
+image:
+  repository: ghcr.io/saisarantottempudi/finsight-app
+  tag: latest
+  pullPolicy: Always
+
+dashboard:
+  image: ghcr.io/saisarantottempudi/finsight-dashboard:latest
+  replicaCount: 1
+
+ingestion:
+  image: ghcr.io/saisarantottempudi/finsight-ingestion:latest
+  symbols: "AAPL,GOOGL,MSFT,JPM,GS"
+  intervalSeconds: "60"
+
+service:
+  type: ClusterIP
+  port: 8000
+
+ingress:
+  enabled: true
+  className: nginx
+  host: finsight.yourdomain.com
+  tls: true
+
+resources:
+  api:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+  dashboard:
+    limits:
+      cpu: 300m
+      memory: 256Mi
+    requests:
+      cpu: 50m
+      memory: 128Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 70
+
+env:
+  ENVIRONMENT: production
+  LOG_LEVEL: INFO

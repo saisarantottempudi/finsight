@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-ingestion
+  labels:
+    app: {{ .Release.Name }}-ingestion
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: {{ .Release.Name }}-ingestion
+  template:
+    metadata:
+      labels:
+        app: {{ .Release.Name }}-ingestion
+    spec:
+      containers:
+        - name: ingestion
+          image: {{ .Values.ingestion.image | quote }}
+          imagePullPolicy: Always
+          env:
+            - name: SYMBOLS
+              value: {{ .Values.ingestion.symbols | quote }}
+            - name: INTERVAL_SECONDS
+              value: {{ .Values.ingestion.intervalSeconds | quote }}
+          envFrom:
+            - secretRef:
+                name: {{ .Release.Name }}-secrets
+          resources:
+            limits:
+              cpu: 200m
+              memory: 256Mi
+            requests:
+              cpu: 50m
+              memory: 128Mi
