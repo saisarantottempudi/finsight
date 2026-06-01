@@ -3,7 +3,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.api.routes import health, portfolio, transactions, risk
-from app.core.config import settings
 from app.core.telemetry import setup_telemetry
 
 app = FastAPI(

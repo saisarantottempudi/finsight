@@ -23,10 +23,10 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r app/requirements.txt
-          pip install pytest pytest-anyio anyio ruff bandit
+          pip install pytest pytest-asyncio anyio ruff bandit
 
       - name: Lint (ruff)
-        run: ruff check app/ --ignore E501
+        run: ruff check app/
 
       - name: SAST (bandit)
         run: bandit -r app/ -ll --exclude app/db/migrations
