@@ -1,6 +1,6 @@
 import os
-import pickle
 
+import joblib
 import numpy as np
 import structlog
 from sklearn.ensemble import IsolationForest
@@ -46,13 +46,11 @@ class FraudDetector:
 
     def _save(self) -> None:
         os.makedirs(os.path.dirname(settings.MODEL_PATH), exist_ok=True)
-        with open(settings.MODEL_PATH, "wb") as f:
-            pickle.dump({"model": self.model, "scaler": self.scaler}, f)
+        joblib.dump({"model": self.model, "scaler": self.scaler}, settings.MODEL_PATH)
 
     def _load(self) -> None:
         if os.path.exists(settings.MODEL_PATH):
-            with open(settings.MODEL_PATH, "rb") as f:
-                data = pickle.load(f)
+            data = joblib.load(settings.MODEL_PATH)
             self.model = data["model"]
             self.scaler = data["scaler"]
             self.is_trained = True
