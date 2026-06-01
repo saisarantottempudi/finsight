@@ -1,0 +1,59 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: finsight
+      POSTGRES_USER: finsight
+      POSTGRES_PASSWORD: finsight
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U finsight -d finsight"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  app:
+    build: ./app
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://finsight:finsight@db:5432/finsight
+      ENVIRONMENT: development
+      LOG_LEVEL: INFO
+      OTEL_ENDPOINT: http://jaeger:4317
+      MODEL_PATH: /models/fraud_detector.pkl
+      SECRET_KEY: dev-secret-change-in-prod
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - models_data:/models
+
+  dashboard:
+    build: ./dashboard
+    ports:
+      - "8501:8501"
+    environment:
+      API_URL: http://app:8000
+    depends_on:
+      - app
+
+  ingestion:
+    build: ./data-ingestion
+    environment:
+      DATABASE_URL: postgresql://finsight:finsight@db:5432/finsight
+      SYMBOLS: AAPL,GOOGL,MSFT,JPM,GS
+      INTERVAL_SECONDS: "60"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  models_data:

@@ -1,0 +1,23 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - "alert_rules.yml"
+
+# Uncomment for Grafana Cloud remote write:
+# remote_write:
+#   - url: ${GRAFANA_PROM_URL}
+#     basic_auth:
+#       username: ${GRAFANA_PROM_USER}
+#       password: ${GRAFANA_API_KEY}
+
+scrape_configs:
+  - job_name: finsight-api
+    static_configs:
+      - targets: ["app:8000"]
+    metrics_path: /metrics
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

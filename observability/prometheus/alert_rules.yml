@@ -1,0 +1,27 @@
+groups:
+  - name: finsight
+    rules:
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High 5xx error rate on FinSight API"
+          description: "Error rate {{ $value | humanize }} req/s"
+
+      - alert: APIHighLatency
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "P95 API latency above 1s"
+
+      - alert: APIDown
+        expr: up{job="finsight-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "FinSight API is down"
