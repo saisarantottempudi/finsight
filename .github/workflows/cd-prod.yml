@@ -1,0 +1,94 @@
+name: CD — Production Deploy
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  push-to-ghcr:
+    name: Build + Push to ghcr.io
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push app
+        uses: docker/build-push-action@v5
+        with:
+          context: ./app
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/finsight-app:${{ github.ref_name }}
+            ghcr.io/${{ github.repository_owner }}/finsight-app:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push dashboard
+        uses: docker/build-push-action@v5
+        with:
+          context: ./dashboard
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/finsight-dashboard:${{ github.ref_name }}
+            ghcr.io/${{ github.repository_owner }}/finsight-dashboard:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Build and push ingestion
+        uses: docker/build-push-action@v5
+        with:
+          context: ./data-ingestion
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/finsight-ingestion:${{ github.ref_name }}
+            ghcr.io/${{ github.repository_owner }}/finsight-ingestion:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy-to-k3s:
+    name: Deploy to Oracle Cloud k3s
+    runs-on: ubuntu-latest
+    needs: push-to-ghcr
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: v3.15.0
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p ~/.kube
+          echo "${{ secrets.KUBECONFIG_B64 }}" | base64 -d > ~/.kube/config
+          chmod 600 ~/.kube/config
+
+      - name: Deploy via Helm
+        run: |
+          helm upgrade --install finsight ./infra/helm/finsight \
+            --namespace finsight \
+            --create-namespace \
+            --set image.tag=${{ github.ref_name }} \
+            --set image.repository=ghcr.io/${{ github.repository_owner }}/finsight-app \
+            --set dashboard.image=ghcr.io/${{ github.repository_owner }}/finsight-dashboard:${{ github.ref_name }} \
+            --set ingestion.image=ghcr.io/${{ github.repository_owner }}/finsight-ingestion:${{ github.ref_name }} \
+            --atomic \
+            --timeout 5m
+
+      - name: Verify rollout
+        run: kubectl rollout status deployment/finsight-api -n finsight --timeout=3m
